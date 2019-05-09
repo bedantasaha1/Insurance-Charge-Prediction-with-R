@@ -1,0 +1,345 @@
+---
+title: "Insurance Charge Prediction"
+author: "Bedanta Saha"
+date: "30 April 2019"
+output:
+  word_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+                                              #Introduction
+                                              
+An insurance is an type of  arrangement provided by  a company or government to guarantee of compensation for specified damage, loss, illness, or death in return for payment of a specified premium (Google.com, 2019). There are different types of insurance depending on the types of loss, damage such as Life Insurance, Auto Insurance, Health Insurance, Travel Insurance, Disability Insurance and so on. Insurance industry has always been one of the most competitive industries. The main structure of the insurance policies are instantly related to risk. So it has always been a field to implement statistics to predict the risks and the other outcomes. 
+
+                                        
+#Import Libraries
+First the required R-libraries have been imported
+
+```{r, warning=FALSE,message=FALSE}
+library(tidyverse) # metapackage with lots of helpful functions
+library(gridExtra) # to plot multiple ggplots aside
+library(QuantPsyc) #quantitative psycology tool
+library(car) #Regression package
+```
+
+                                                #Import Data
+The dataset has been imported and the basic overview of data                                                
+```{r, warning=FALSE,message=FALSE}
+dataset <- read.csv("insurance.csv")
+head(dataset)
+str(dataset)
+summary(dataset)
+```
+    
+                                           #About The Dataset  
+                                                                                                               The dataset 'insurance.csv' which has used here contains records of  customers of a health insurance. It contains total 6 columns. Those are as follows:
+age: age of the beneficiaries 
+sex: gender of the beneficiaries
+bmi: Body mass index of the beneficiaries. It is a value derived from the mass (weight) and height of an individual. It is defined as the body mass divided by the square of the body height, and is universally expressed in units of kg/m2, resulting from mass in kilograms and height in metres (En.wikipedia.org, 2019).
+children: Number of children (dependents) covered by health insurance policy
+smoker: Whether a beneficiary  is a smoker or not
+region: Residential areas of the beneficiaries in US, i.e. northeast, southeast, southwest, northwest.
+charges: Medical charges billed by the health insurance company for each individuals.
+The dataset has been taken from: https://github.com/stedy/Machine-Learning-with-R-datasets/blob/master/insurance.csv
+
+                                              #Research Question
+The research question for this study is:
+How does the insurance cost depend on the beneficiaries'  attributes ?
+
+                                              #Basic EDA
+                                              
+Some basic exploratory data analysis has been done to start the study. Here mainly the ratio of gender and smoker of the dataset has been focused on.
+
+
+```{r}
+chart <- dataset%>%
+  filter(!sex=="")%>%
+  group_by(sex) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(perc=`n`/sum(`n`)) %>% 
+  arrange(desc(sex))
+
+chart$label <- scales::percent(chart$perc)
+
+fig1<- ggplot(chart) + coord_polar("y", start=0) + geom_bar(aes(y=perc, x="",  fill=sex), width = 1, stat="identity" ) + theme_void() + geom_text(aes(label=label, x=1, y = cumsum(perc) - perc/2)) + labs(title="Gender Percentage in Dataset")
+
+#fig1
+
+chart <- dataset%>%
+  filter(!smoker=="")%>%
+  group_by(smoker) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(perc=`n`/sum(`n`)) %>% 
+  arrange(desc(smoker))
+chart$label <- scales::percent(chart$perc)
+fig2<- ggplot(data=chart)+coord_polar("y", start=0) + geom_bar(aes(y=perc, x="", fill=smoker),  width = 1,  stat="identity") + geom_text(aes(label=label, x=1, y = cumsum(perc) - perc/2 )) +theme_void() +labs(title="Smokers Percentage in Dataset")
+#fig2
+chart <- dataset%>%
+  filter(sex=="male")%>%
+  group_by(smoker) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(perc=`n`/sum(`n`)) %>% 
+  arrange(desc(smoker))
+chart$label <- scales::percent(chart$perc)
+fig3<- ggplot(data=chart) + coord_polar("y", start=0) + geom_bar(aes(x="", y=perc, fill=smoker),  width = 1, stat="identity") + geom_text(aes(x=1, y = cumsum(perc) - perc/2, label=label)) + theme_void() + labs(title="Smoker Percentage in male")
+
+#fig3
+
+chart <- dataset%>%
+  filter(sex=="female")%>%
+  group_by(smoker) %>% 
+  count() %>% 
+  ungroup() %>% 
+  mutate(perc=`n`/sum(`n`)) %>% 
+  arrange(desc(smoker))
+
+chart$label <- scales::percent(chart$perc)
+
+fig4<- ggplot(data=chart) + coord_polar("y", start=0) + geom_bar( aes(x="",y=perc, fill=smoker), width = 1, stat="identity") + geom_text(aes( label=label, x=1, y = cumsum(perc) - perc/2)) + theme_void() +  labs(title="Smoker Percentage in female")
+
+#fig4
+grid.arrange(fig1,fig2,fig3,fig4, ncol=2, nrow=2)
+
+```
+
+It can be seen that the ratio of male and female is almost same in the dataset. Almost one fifth of the customers of the datset are smokers. Ratio of smokers are higher in males compare to the females. 
+
+
+
+Now it has been tried to observe how does the insurance depend on the sex, smoker, number of children and region with box plots.
+
+```{r, warning=FALSE,message=FALSE}
+fig5 <- ggplot(dataset,aes(x = sex, y = charges)) +
+ geom_boxplot(colour="orangered2")
+
+fig6 <- ggplot(dataset, aes(x = smoker, y = charges)) +
+ geom_boxplot(colour="olivedrab1")
+
+fig7 <- ggplot(dataset, aes(x = as.factor(children), y = charges)) +
+ geom_boxplot(colour="indianred4")
+
+fig8 <- ggplot(dataset, aes(x = region, y = charges)) +
+ geom_boxplot(colour="goldenrod")
+
+grid.arrange(fig5, fig6,fig7,fig8, ncol=2, nrow=2)
+```
+
+It can be seen from the first boxplot (sex vs charges) that males and females pay almost same charges on average.The next box plot (smoker vs charges) shows that the beneficiaries who smoke pay higher insurance charges than the non-smokers. In third box plot (children vs charges) it can be seen that the customers having more children pay higher charges. And the last box plot (region vs charges) shows that charges does not depend much on the residential region of the customers.
+
+Next it has been tried to observed how does the insurance charges changes as the age and the bmi rate of the customers increase.
+
+```{r, warning=FALSE,message=FALSE}
+fig9 <- ggplot(dataset, aes(x = age, y = charges)) +
+ geom_point(colour="darkorange4")
+fig10 <- ggplot(dataset, aes(x = bmi, y = charges)) +
+ geom_point(colour="slateblue4")
+grid.arrange(fig9,fig10, ncol=2)
+
+```
+
+In the first scatter plot (age vs charges) it can be observed that the charges increase as the age of the customer increase. Interestingly there are three groups of line. The second scatter plot (bmi vs charges) shows there is some relation between bmi and insurance charges but it is not very clear.
+
+                                          #Simple Regression (first model)
+Now first a predictor model has been made based on the age of the customers to predict the insurance charge.
+This is called simple linear regression. Here method of least square is used to find a best fit line for the model. But as it is linear so it will never cover all the data points. So a deviation is measured from the real value and fitted value. This deviation is called residuals.
+                                          deviation=???(observed???model)^2
+
+```{r, warning=FALSE,message=FALSE}
+# simple linear regression using age as the predictor variable:
+mod1 = lm(charges ~ age, data = dataset)
+# make plot 
+ggplot(dataset, aes(x = age, y = charges)) +
+ geom_point(colour="salmon2") +
+ geom_hline(yintercept = mean(dataset$charges)) + #add line representing the mean charges
+ geom_smooth(method='lm') # add regression line
+
+
+```
+
+
+
+                                          #Goodness of fit
+Assuming if we had only information of the insurance charges then the simplest way to predict was to use the mean which is represented by the black line. Using the mean we can calculate the difference between the mean and the observed value, this measurement is called the total sum of square (SSt). Next we can measure the difference between the observed value with the help of the regression line (blue line) and all the observed value, this is called the residual sum of squares (SSr). Now the difference between the value got from the regression line and the mean value is called the model sum of square(SSm). Now SSm and SSt is used to get the percentage variasion of the outcome (in our case charges). 
+                                        R^2=SSm/SSt
+This R is called pearson correlation coefficient which is useful where we predict with single variable.
+
+                                          #Hypothesis Testing
+In any experiment there are two hypotheis (i) alternate hypothesis and (ii) Null Hypothesis. 
+(i) Alternate Hypothesis claims that the difference in the outcome of the dependent variable (charges in our case) is for the independent variables.
+(ii)Null Hypothesis claims that the difference in the outcome of the dependent variable is not for the independent variables (i.e. the results are coming by chance)
+
+In this study the Null Hypothesis is: The charges of the insurance does not depend on the beneficiaries attribute(s).
+
+And the alternative Hypothesis is: The charges of the insurance depends on the beneficiaries attribute(s).
+
+In this study if p-value of the model <= 0.05 ,  null hypothesis will be rejected alternative hypothesis will be retain.
+
+                                          #Summary of first model
+
+```{r, warning=FALSE,message=FALSE}
+# show results:
+summary(mod1)
+```
+
+Here Multiple R-sqared is 0.08941 so 8.94% of the variation of the insurance charges is explained by age of the customers.
+
+The p-value is less than 2.2e-16 which is very much less than 0.05 so null hypothesis is rejected and alternative hypothesis is retained. So it can be said that the value of insurance charges depends on the age.
+
+```{r, warning=FALSE,message=FALSE}
+# to show the correlation between age and age.
+sqrt(0.08941)
+```
+Here the square root of the R-squared is the pearson correlation coefficient between age and charges.
+
+Also it can be seen the coefficient for age is 257.7, which means charges increase 257.7 as the age increase by 1 year. 3165.9 is the intercept. So this model is predicting the charges using the below formula:
+                              charges = 3165.9 + (257.7 * age in years).
+
+#Multiple Regression(2nd Model)
+
+When we use more than one independent variables to predict the value of dependent variabl then it is called multiple regression.
+The formulla for it looks like: Yi=(b0+b1X1+b2X2+...+bnXn)+ei
+
+In this study the next model has been built using multiple regression using the following independents variables:
+smoker, age, bmi, sex, children.
+
+```{r, warning=FALSE,message=FALSE}
+mod2 <- lm(charges ~ smoker + age + bmi+sex + children, data = dataset)
+summary(mod2)
+```
+Here Multiple R-sqared is 0.7497 so 74.97% of the variation of the insurance charges is explained by independent variables of the dataset. So this model is better enough than the previous one.
+
+The p-value is less than 2.2e-16 which is very much less than 0.05 so null hypothesis is rejected and alternative hypothesis is retained. So it can be said that the value of insurance charges depends on the beneficieries' attributes.
+This model is predicting the charges using the below formula:
+
+charges = -12052.46 + (23823.39 * smoker yes)+ (257.73 * age)+ (322.36 * bmi)+ (-128.64 * sex male)+ (474.41 * number of children)
+
+#Anova Test
+
+```{r, warning=FALSE,message=FALSE}
+anova(mod1, mod2)
+```
+
+Here we can see the F-value is 878.57 so the change in explained variance is significant.
+
+#Checking the assumption of multicolinearity
+
+While building a reliable model it should be checked that the used variables are not stringly corelated amongst eachother. To do so the variance inflation factor(VIF) of the model has been tested. To build a good model VIF should not be higher than 10.
+
+```{r, warning=FALSE,message=FALSE}
+# VIF
+vif(mod2)
+# tolerance
+1/vif(mod2)
+# mean VIF
+mean(vif(mod2))
+```
+
+Here no VIF is larger than 10. So it can been said that there is no strong correlation amongst the independent variables of this dataset.
+
+#Making a better model (3rd model)
+
+A regression can be made even better if we can use linear model with non-linear variables (when it is required).
+
+First it has been observed whether age is influencing the charges if we use it in higher degree(2)
+
+```{r, warning=FALSE,message=FALSE}
+plot.age2 <- ggplot(dataset, aes(x = age^2, y = charges)) +
+ geom_point(colour="green4")
+
+grid.arrange(fig9, plot.age2, ncol=2)
+```
+
+It can be seen the value of charges trends a more straight line with the influence of age^2 compared to the plot of age. So in the next model age^2 can be used to make it better.
+
+Previously it has been seen that the dependency of charges on bmi is not clear. Now it can be seen how it is look like if we also consider smoker along with the bmi.
+
+```{r, warning=FALSE,message=FALSE}
+ggplot(dataset, aes(x = bmi, y = charges, col = smoker)) +
+ geom_point()
+```
+
+It can be clearly seen that there is an ineraction between bmi and smoke. So in the next model smoke*bmi can be used.
+
+To use age^2 first a new column has been derived from age.
+
+```{r, warning=FALSE,message=FALSE}
+# make new variable age.square
+dataset <- dataset %>% 
+mutate(age.square = age^2)
+```
+
+Now the model has been made considering age^2 and bmi*smoke as two new variables. And age and sex these two variables have been dropped.
+
+```{r, warning=FALSE,message=FALSE}
+mod3 <- lm(charges ~ smoker + age.square +children + smoker*bmi, data = dataset)
+summary(mod3)
+```
+Here Multiple R-sqared is 0.8414 so 84.14% of the variation of the insurance charges is explained by independent variables of the dataset. So this model is even better than the previous one where R-squared value was 0.7497
+
+The p-value is less than 2.2e-16 which is very much less than 0.05 so null hypothesis is rejected and alternative hypothesis is retained. So it can be said that the value of insurance charges depends on the beneficieries' attributes.
+This model is predicting the charges using the below formula:
+
+charges = 1.785e+03 + (-2.013e+04 * smoker yes)+ (3.350e+00 * age^2)+ (2.634e+00 * bmi)+ (1.432e+03 * smoker yes* bmi)+ (6.504e+02 * number of children)
+
+#Anova Test
+
+```{r, warning=FALSE,message=FALSE}
+anova(mod2, mod3)
+```
+
+#VIF test of 3rd model
+
+```{r, warning=FALSE,message=FALSE}
+# VIF
+vif(mod3)
+# tolerance
+1/vif(mod3)
+# mean VIF
+mean(vif(mod3))
+```
+
+Here the all the VIF values are not less than 10 (smoker, smoker*bmi) as the second one is derived using the first one. But th values are not higher than 80 so we can use the model as a valid and reliable one.
+
+#Visualised comparison of 2nd model and 3rd model
+
+Next the comparison of the last 2 models has been done by plotting the graphs.
+
+```{r, warning=FALSE,message=FALSE}
+fig5 <- plot(mod2,col="darkseagreen4") #plotting for model 2
+```
+```{r, warning=FALSE,message=FALSE}
+fig6 <- plot(mod3,col="darkseagreen4") #plotting for model 3
+```
+
+#Checking assumption about the residual
+
+To check the assumption of the residuals standardize residuals are plotted against the fitted value.The dots should be evenly distributed amongst the zero line to claim the assumption is good. It seems from the 2nd model that there have been three groups of dots near the zero line and each group must have difference variance.
+
+The graph for the 3rd model is better according to the assumption but still it seems there may be total 3 groups of dots.
+
+From this different(increasing) variances it can also be observed that for the Q-Q plot the dots deviate from the fitted line. The non-linear relationship amongst the independent and dependent variables can be observed clearly from the Q-Q plot. So the models are covering a large part of the dataset well but can not cover the points of the whole dataset well. 
+
+Also from the residuals vs leverage plots it can be observed that the Cook's distances are in desired range (0 to 1) and the line is better for the last model.
+
+#Conclusion, limitations and future work
+
+In this study some basic statistical tools have been used to see whether the insurance charge billed by a health insurance company depends on the beneficiaries' attributes or not. Linear regression models have been used to predict the charges of the insurance. The required assumptions and hypothesis have been tested to make the models reliable and significant.
+
+As it is very hard to get real world insurance data so this dataset has been taken from github. The dataset is not large enough to rely on the results for practical implementation but to use and learn the statistical tools it was a good enough as a proof of concept.
+
+Only simple linear regression and multiple linear regression model have been used in this study. After predicting the outcomes with the linear models it has been realised from the graphs that there are three different linear segment(three clusters of dots) in the dependent variable. So a non-linear model or a clustering algorithm could have been even better to predict the charges more accurately. So further more future works can be done on this dataset and the same research question using differnet algorithms.
+
+#References
+
+En.wikipedia.org. (2019). Body mass index. [online] Available at: https://en.wikipedia.org/wiki/Body_mass_index [Accessed 30 Apr. 2019].
+
+Google.com. (2019). insurance definition - Google Search. [online] Available at: https://www.google.com/search?q=insurance+definition&oq=insurance+def&aqs=chrome.0.0j69i57j0l4.7889j1j7&sourceid=chrome&ie=UTF-8 [Accessed 30 Apr. 2019].
+
+
